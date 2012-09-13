@@ -1,0 +1,38 @@
+http://baldur.dev.hautelook.com/api/member/5886885/shipping
+
+<?php
+
+namespace Hautelook\ApiBundle\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\HttpFoundation\Response;
+
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
+
+
+/**
+ * @author Baldur Rensch <baldur.rensch@hautelook.com>
+ * @Route("/api")
+ */
+class MemberController extends Controller
+{
+	/**
+     * @Route("/member/{memberId}/shipping", requirements={"memberId" = "\d+"})
+     * @Method({"GET"})
+     */
+	public function getShippingAction($memberId)
+	{
+		$member = $this->getDoctrine()->getRepository('HautelookApiBundle:Members')->find($memberId);
+		$shippingAddresses = $member->getShippingAddresses();
+
+		echo "<pre>";
+		foreach ($shippingAddresses as $shippingAddress) {
+			\Doctrine\Common\Util\Debug::dump($shippingAddress);
+		 	
+		}
+
+		return new Response("Done");
+	}
+}

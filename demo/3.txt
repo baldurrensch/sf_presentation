@@ -1,0 +1,64 @@
+<?php
+
+namespace Hautelook\ApiBundle\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
+
+use Hal\Resource as HalResource;
+use Hal\Link as HalLink;
+
+use Nelmio\ApiDocBundle\Annotation\ApiDoc;
+
+
+/**
+ * @author Baldur Rensch <baldur.rensch@hautelook.com>
+ * @Route("/api")
+ */
+class MemberController extends Controller
+{
+	/**
+     * @Route("/member/{memberId}/shipping", requirements={"memberId" = "\d+"})
+     * @Method({"GET"})
+     * 
+     * @ApiDoc(
+     *     description="This function returns a set of shipping addresses for a member",
+     *     filters={
+     *         {"name"="default", "dataType"="string", "pattern"="yes|no"}
+     *     }
+     * )
+     * @param int $memberId
+     */
+	public function getShippingAction($memberId)
+	{
+		$member = $this->getDoctrine()->getRepository('HautelookApiBundle:Members')->find($memberId);
+		if (!$member) {
+			throw new NotFoundHttpException("The member {$memberId} does not exist");	
+		} 
+
+		$shippingAddresses = $member->getShippingAddresses();
+
+		$linkUrl = "/v4/member/{$memberId}/shipping";
+		$response = new HalResource($linkUrl);
+		
+		$link = new HalLink("{$linkUrl}?default=yes", "/shipping/default");
+		$response->setLink($link);
+		
+		$serializer = $this->container->get('serializer');
+
+		foreach ($shippingAddresses as $shippingAddress) {
+			$response->setEmbedded($shippingAddress->getHalRel(), new HalResource($shippingAddress->getHalSelf(), (array) json_decode($serializer->serialize($shippingAddress, 'json'))));
+		}
+
+		$response = new Response((string) $response);
+		$response->headers->set('Content-Type', 'application/json');
+
+		return $response;
+	}
+}

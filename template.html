@@ -29,7 +29,7 @@
   </slide>
 
   <slide class="">
-    <!-- <aside class="gdbar right bottom"><img src="images/google_developers_icon_128.png"></aside> -->
+    
       <hgroup>
         <h2>What is Symfony?</h2>
       </hgroup>
@@ -41,6 +41,7 @@
       </q>
       <div class="author">
         http://symfony.com
+        <img style="margin-left: 400px;" src="images/symfony.png">
       </div>
     </article>
   </slide>
@@ -52,10 +53,17 @@
     <article>
       <p>Symfony is compromised of a lot of components, all also working standalone:</p>
       <ul class="build">
+        <li>Dependency Injection Container</li>
         <li>Doctrine (DataMapper / ORM)</li>
         <li>Composer</li>
         <li>Router</li>
         <li>Twig (Templating)</li>
+        <li>Console</li>
+        <li>Event Dispatcher</li>
+        <li>HTTP Foundation</li>
+        <li>Locale</li>
+        <li>Process</li>
+        <li>YAML</li>
       </ul>
     </article>
   </slide>
@@ -166,37 +174,91 @@ $ cp app/config/parameters.yml{.dist,}
 
   <slide>
     <hgroup>
-      <h2>We are ready... Let's add the endpoint</h2>
+      <h2>Step 1: Adding the endpoint</h2>
     </hgroup>
-    <article>
-      <ul class="build">
-        <li>Add to controller</li>
-        <li>Add routing</li>
-        <li>Query and dump the result</li>
-      </ul>
+    <article class="smaller">
+      <pre class="prettyprint" data-lang="php">
+/**
+ * @author Baldur Rensch <baldur.rensch@hautelook.com>
+ * @Route("/api")
+ */
+class MemberController extends Controller
+{
+  /**
+   * @Route("/member/{memberId}/shipping", requirements={"memberId" = "\d+"})
+   * @Method({"GET"})
+   */
+  public function getShippingAction($memberId)
+  {
+    $member = $this->getDoctrine()->getRepository('HautelookApiBundle:Members')->find($memberId);
+    $shippingAddresses = $member->getShippingAddresses();
+
+    echo "&lt;pre&gt;";
+    foreach ($shippingAddresses as $shippingAddress) {
+      \Doctrine\Common\Util\Debug::dump($shippingAddress);   
+    }
+
+    return new Response("Done");
+  }
+}
+      </pre>
     </article>
   </slide>
 
   <slide>
     <hgroup>
-     <h2>JSON-Hal</h2>
+     <h2>Step 2: Formatting as JSON-Hal</h2>
     </hgroup>
     <article>
-      <ul class="build">
-        <li>Format the result</li>
-      </ul>
+      <pre class="prettyprint" data-lang="php">
+public function getShippingAction($memberId)
+{
+    $member = $this->getDoctrine()->getRepository('HautelookApiBundle:Members')->find($memberId);
+    $shippingAddresses = $member->getShippingAddresses();
+    <b>
+    $response = new HalResource("/v4/member/{$memberId}/shipping");
+    $serializer = $this->container->get('serializer');
+
+    foreach ($shippingAddresses as $shippingAddress) {
+      $response->setEmbedded($shippingAddress->getHalRel(), 
+        new HalResource($shippingAddress->getHalSelf(), 
+          (array) json_decode($serializer->serialize($shippingAddress, 'json'))));
+    }
+    </b>
+    $response = new Response((string) $response);
+    $response->headers->set('Content-Type', 'application/json');
+    
+    return $response;
+}
+    </pre>
     </article>
   </slide>
 
   <slide>
     <hgroup>
-      <h2>Documentation / Error Handling</h2>
+      <h2>Step 3: Documentation / Error Handling</h2>
     </hgroup>
     <article>
-      <ul class="build">
-        <li>Add documentation</li>
-        <li>Add error handling for entities not being found</li>
-      </ul>
+      <pre class="prettyprint" data-lang="php">
+/**
+ * @Route("/member/{memberId}/shipping", requirements={"memberId" = "\d+"})
+ * @Method({"GET"})
+ * 
+ * @ApiDoc(
+ *     description="This function returns a set of shipping addresses for a member",
+ *     filters={
+ *         {"name"="default", "dataType"="string", "pattern"="yes|no"}
+ *     }
+ * )
+ * @param int $memberId
+ */
+public function getShippingAction($memberId)
+{
+$member = $this->getDoctrine()->getRepository('HautelookApiBundle:Members')->find($memberId);
+if (!$member) {
+  throw new NotFoundHttpException("The member {$memberId} does not exist"); 
+}         
+      </pre>
     </article>
   </slide>
 

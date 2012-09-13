@@ -1,0 +1,42 @@
+<?php
+
+namespace Hautelook\ApiBundle\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\HttpFoundation\Response;
+
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
+
+use Hal\Resource as HalResource;
+
+
+/**
+ * @author Baldur Rensch <baldur.rensch@hautelook.com>
+ * @Route("/api")
+ */
+class MemberController extends Controller
+{
+	/**
+     * @Route("/member/{memberId}/shipping", requirements={"memberId" = "\d+"})
+     * @Method({"GET"})
+     */
+	public function getShippingAction($memberId)
+	{
+		$member = $this->getDoctrine()->getRepository('HautelookApiBundle:Members')->find($memberId);
+		$shippingAddresses = $member->getShippingAddresses();
+
+		$response = new HalResource("/v4/member/{$memberId}/shipping");
+		$serializer = $this->container->get('serializer');
+
+		foreach ($shippingAddresses as $shippingAddress) {
+			$response->setEmbedded($shippingAddress->getHalRel(), new HalResource($shippingAddress->getHalSelf(), (array) json_decode($serializer->serialize($shippingAddress, 'json'))));
+		}
+
+		$response = new Response((string) $response);
+		$response->headers->set('Content-Type', 'application/json');
+		
+		return $response;
+	}
+}
